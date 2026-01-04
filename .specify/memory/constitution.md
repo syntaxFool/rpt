@@ -1,50 +1,49 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# Red Panda Tracker Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. User-Centric Wildlife Tracking
+Every feature must prioritize user engagement in red panda conservation. Features must directly support wildlife observation, tracking, and data collection activities. Features should be intuitive for both casual users and wildlife professionals.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Data Integrity and Persistence
+All tracked data must be reliably persisted locally using Hive database. Data synchronization must handle offline scenarios gracefully. User data is sacred—no data loss is acceptable. Complete audit trails for all observations.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Mobile-First Responsive Design
+Application must work flawlessly on iOS and Android. UI must be responsive and accessible. Fast load times and smooth animations required. Support both light and dark themes using Material Design 3.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Test-First Development (NON-NEGOTIABLE)
+TDD mandatory: Widget tests → User approval → Tests fail → Implementation. Unit tests for business logic, widget tests for UI, integration tests for data persistence. Red-Green-Refactor cycle strictly enforced. Aim for >80% code coverage.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Clean Architecture
+Separation of concerns: UI layer, business logic layer, data layer. Provider pattern for state management. Clear dependency injection. Testable components at every level.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Technology Stack & Constraints
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- **Framework**: Flutter (stable channel, Dart 3.10+)
+- **State Management**: Provider for simplicity and testability
+- **Local Database**: Hive for offline-first data persistence
+- **UI**: Material Design 3, Google Fonts
+- **Target Platforms**: iOS 12.0+, Android 5.0+
+- **Development Environment**: Spec-Driven Development workflow
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Development Workflow
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+1. **Specification Phase**: Define features using Spec-Driven Development
+2. **Planning Phase**: Create technical implementation plans aligned with Flutter best practices
+3. **Task Breakdown**: Atomize work into testable, independently reviewable units
+4. **Implementation**: Follow TDD rigorously; tests must pass before feature completion
+5. **Quality Gates**: Code review, test coverage verification, performance validation
+
+## Quality Standards
+
+- **Code Style**: Follow [Dart Style Guide](https://dart.dev/guides/language/effective-dart/style)
+- **Testing**: Every feature requires tests; no exceptions
+- **Performance**: App startup <2s, list scrolling at 60 FPS minimum
+- **Accessibility**: Support screen readers, high contrast modes
+- **Documentation**: Code comments for complex logic; README for setup
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+Constitution supersedes all other practices. All PRs must verify compliance with these principles. Complexity must be justified with business value. Use Spec-Kit memory artifacts for runtime development guidance.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-01-04 | **Last Amended**: 2026-01-04
