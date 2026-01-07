@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Panda Animation</title>
+  <style>
+    body {
+      background-color: #f4f4f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+
+    .wrapper {
+      position: relative;
+      width: 300px; /* Adjust if your image is very large or small */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* The Panda Animation */
+    .panda-img {
+      width: 100%;
+      height: auto;
+      z-index: 2;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    /* The Shadow Animation */
+    .shadow {
+      width: 180px;
+      height: 20px;
+      background: rgba(0,0,0,0.15);
+      border-radius: 50%;
+      margin-top: -25px; 
+      z-index: 1;
+      animation: shadow-scale 3s ease-in-out infinite;
+    }
+
+    /* Keyframes */
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-20px); }
+    }
+
+    @keyframes shadow-scale {
+      0%, 100% { 
+        transform: scale(1); 
+        opacity: 0.2;
+      }
+      50% { 
+        transform: scale(0.8); 
+        opacity: 0.1; 
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <img src="favicon.png" alt="Animated Panda" class="panda-img">
+    <div class="shadow"></div>
+  </div>
+
+</body>
+</html>

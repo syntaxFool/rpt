@@ -11,8 +11,30 @@ class StatsScreen extends StatefulWidget {
   State<StatsScreen> createState() => _StatsScreenState();
 }
 
-class _StatsScreenState extends State<StatsScreen> {
+class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin {
   String _selectedPeriod = 'Week'; // Week, Month, Year
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    );
+    _fadeController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,63 +53,41 @@ class _StatsScreenState extends State<StatsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Period Selector
-          _buildPeriodSelector(),
-          const SizedBox(height: 16),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Period Selector
+            _buildPeriodSelector(),
+            const SizedBox(height: 16),
 
-          // Today's Summary Card
-          _buildTodaySummaryCard(
-            todayCalories,
-            todayMacros['protein'] ?? 0.0,
-            todayMacros['carbs'] ?? 0.0,
-            todayMacros['fat'] ?? 0.0,
-            settings,
-          ),
-          const SizedBox(height: 16),
-
-          // Chart
-          _buildCalorieChart(logProvider, settings),
-          const SizedBox(height: 16),
-
-          // Quick Stats
-          _buildQuickStats(logProvider),
-          const SizedBox(height: 16),
-
-          // Most Logged Foods
-          _buildMostLoggedFoods(logProvider),
-          const SizedBox(height: 16),
-
-          // Total Logs
-          Card(
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF27D52).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.receipt_long,
-                  color: Color(0xFFF27D52),
-                ),
-              ),
-              title: const Text(
-                'Total Meal Logs',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              trailing: Text(
-                logProvider.logs.length.toString(),
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: const Color(0xFFF27D52),
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
+            // Today's Summary Card
+            _buildTodaySummaryCard(
+              todayCalories,
+              todayMacros['protein'] ?? 0.0,
+              todayMacros['carbs'] ?? 0.0,
+              todayMacros['fat'] ?? 0.0,
+              settings,
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+
+            // Chart
+            _buildCalorieChart(logProvider, settings),
+            const SizedBox(height: 16),
+
+            // Quick Stats
+            _buildQuickStats(logProvider),
+            const SizedBox(height: 16),
+
+            // Most Logged Foods
+            _buildMostLoggedFoods(logProvider),
+            const SizedBox(height: 16),
+
+            // Total Logs
+            _buildTotalLogsCard(logProvider),
+          ],
+        ),
       ),
     );
   }
@@ -119,12 +119,27 @@ class _StatsScreenState extends State<StatsScreen> {
     final isSelected = _selectedPeriod == period;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedPeriod = period),
-        child: Container(
+        onTap: () {
+          setState(() => _selectedPeriod = period);
+          _fadeController.reset();
+          _fadeController.forward();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFFF27D52) : Colors.white,
             borderRadius: BorderRadius.circular(24),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFF27D52).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
           ),
           child: Text(
             period,
@@ -146,62 +161,241 @@ class _StatsScreenState extends State<StatsScreen> {
     double fat,
     AppSettings settings,
   ) {
-    return Card(
-      color: const Color(0xFFF27D52),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.today, color: Colors.white, size: 28),
-                const SizedBox(width: 12),
-                const Text(
-                  'Today\'s Summary',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 700),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.elasticOut,
+      builder: (context, scale, child) {
+        return Transform.scale(
+          scale: scale,
+          child: Card(
+            elevation: 6,
+            shadowColor: const Color(0xFFF27D52).withValues(alpha: 0.4),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFFF27D52),
+                    const Color(0xFFE8654A),
+                  ],
                 ),
-              ],
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.today, color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Today\'s Summary',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Updated now',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Calories Progress
+                  _buildMacroProgressItem(
+                    '🔥 Calories',
+                    calories,
+                    settings.dailyCalorieTarget,
+                    'kcal',
+                    Colors.yellow.shade600,
+                  ),
+                  const SizedBox(height: 16),
+                  // Macros Grid
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMacroProgressItem(
+                          '💪 Protein',
+                          protein,
+                          settings.proteinTarget,
+                          'g',
+                          Colors.blue.shade400,
+                          compact: true,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildMacroProgressItem(
+                          '🌾 Carbs',
+                          carbs,
+                          settings.carbsTarget,
+                          'g',
+                          Colors.green.shade400,
+                          compact: true,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildMacroProgressItem(
+                          '🥑 Fat',
+                          fat,
+                          settings.fatTarget,
+                          'g',
+                          Colors.amber.shade400,
+                          compact: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildMacroStat('🔥', calories.toInt(), settings.dailyCalorieTarget.toInt(), 'kcal'),
-                _buildMacroStat('💪', protein.toInt(), settings.proteinTarget.toInt(), 'g'),
-                _buildMacroStat('🌾', carbs.toInt(), settings.carbsTarget.toInt(), 'g'),
-                _buildMacroStat('🥑', fat.toInt(), settings.fatTarget.toInt(), 'g'),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildMacroStat(String emoji, int current, int target, String unit) {
+  Widget _buildMacroProgressItem(
+    String label,
+    double current,
+    double target,
+    String unit,
+    Color color, {
+    bool compact = false,
+  }) {
+    final percentage = (current / target * 100).clamp(0, 100);
+    
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (percentage / 100).clamp(0, 1),
+                    minHeight: 6,
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${percentage.toInt()}%',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${current.toInt()}/$target $unit',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      );
+    }
+    
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 24)),
-        const SizedBox(height: 4),
-        Text(
-          '$current/$target',
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${percentage.toInt()}%',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: (percentage / 100).clamp(0, 1),
+            minHeight: 10,
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),
-        Text(
-          unit,
-          style: const TextStyle(
-            fontSize: 11,
-            color: Colors.white70,
-          ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '${current.toInt()} $unit',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.9),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              'Target: ${target.toInt()}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -212,27 +406,83 @@ class _StatsScreenState extends State<StatsScreen> {
     final chartData = _getLogsForPeriod(logProvider, days);
     
     return Card(
+      elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Last $_selectedPeriod',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF4A342E),
-              ),
+            // Header with title and stats
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Last $_selectedPeriod',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4A342E),
+                      ),
+                    ),
+                    Text(
+                      'Daily calorie intake',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF27D52).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFF27D52).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Text(
+                    'Target: ${settings.dailyCalorieTarget.toInt()} kcal',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFF27D52),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             SizedBox(
-              height: 150,
+              height: 180,
               child: chartData.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No data yet. Start logging meals!',
-                        style: TextStyle(color: Colors.grey),
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.bar_chart, size: 48, color: Colors.grey.shade300),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No data yet',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Start logging meals to see your trends',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     )
                   : _buildBarChart(chartData, days, settings),
@@ -264,6 +514,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
   Widget _buildBarChart(Map<DateTime, double> data, int days, AppSettings settings) {
     final maxCalories = data.values.isEmpty ? 2000.0 : data.values.reduce((a, b) => a > b ? a : b);
+    final normalizedMax = (maxCalories * 1.2).roundToDouble(); // Add 20% padding
     final sortedDates = data.keys.toList()..sort();
     final displayDates = days <= 7 
         ? sortedDates 
@@ -271,38 +522,136 @@ class _StatsScreenState extends State<StatsScreen> {
             ? sortedDates.where((d) => d.day % 3 == 0).toList()
             : sortedDates.where((d) => d.day == 1).toList();
     
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: displayDates.map((date) {
-        final calories = data[date] ?? 0;
-        final height = maxCalories > 0 ? (calories / maxCalories) * 130 : 0.0;
-        final target = settings.dailyCalorieTarget;
-        final color = calories >= target * 0.9 && calories <= target * 1.1
-            ? Colors.green
-            : calories > target * 1.1
-                ? Colors.orange
-                : Colors.blue.withValues(alpha: 0.6);
-        
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Container(
-              width: days <= 7 ? 30 : days <= 30 ? 20 : 15,
-              height: height.clamp(5.0, 130.0),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(4),
+    // Calculate target line position (as percentage of total height)
+    final targetLinePosition = (settings.dailyCalorieTarget / normalizedMax) * 130;
+    
+    return Stack(
+      children: [
+        // Target reference line
+        Positioned(
+          bottom: targetLinePosition,
+          left: 0,
+          right: 0,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 40,
+                child: Text(
+                  '${settings.dailyCalorieTarget.toInt()}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              DateFormat(days <= 7 ? 'E' : days <= 30 ? 'd' : 'MMM').format(date),
-              style: const TextStyle(fontSize: 9, color: Colors.grey),
-            ),
-          ],
-        );
-      }).toList(),
+              const SizedBox(width: 8),
+              Expanded(
+                child: CustomPaint(
+                  size: const Size(double.infinity, 1),
+                  painter: DashedLinePainter(color: const Color(0xFFF27D52).withValues(alpha: 0.5)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Bars
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: displayDates.asMap().entries.map((entry) {
+            final index = entry.key;
+            final date = entry.value;
+            final calories = data[date] ?? 0;
+            final height = normalizedMax > 0 ? (calories / normalizedMax) * 130 : 0.0;
+            final target = settings.dailyCalorieTarget;
+            final color = calories >= target * 0.9 && calories <= target * 1.1
+                ? const Color(0xFF2ECC71)  // Green for on-target
+                : calories > target * 1.1
+                    ? const Color(0xFFF27D52)  // Orange for over
+                    : const Color(0xFF3498DB).withValues(alpha: 0.6);  // Blue for under
+            
+            return TweenAnimationBuilder<double>(
+              duration: Duration(milliseconds: 800 + (index * 100)),
+              tween: Tween(begin: 0.0, end: height.clamp(3.0, 130.0)),
+              curve: Curves.easeOutCubic,
+              builder: (context, animatedHeight, child) {
+                final formattedDate = DateFormat('dd MMM').format(date);
+                final tooltipText = '${calories.toStringAsFixed(0)} kcal';
+                final targetText = 'Target: ${settings.dailyCalorieTarget.toStringAsFixed(0)} kcal';
+                final percentOfTarget = (calories / target * 100).toStringAsFixed(0);
+                
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Tooltip(
+                      message: '$formattedDate\n$tooltipText\n$targetText\n$percentOfTarget%',
+                      waitDuration: const Duration(milliseconds: 200),
+                      child: GestureDetector(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    formattedDate,
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text('$tooltipText / $targetText'),
+                                  const SizedBox(height: 4),
+                                  Text('$percentOfTarget% of target'),
+                                ],
+                              ),
+                              duration: const Duration(seconds: 3),
+                              backgroundColor: Colors.grey.shade800,
+                            ),
+                          );
+                        },
+                        child: Container(
+                          width: days <= 7 ? 32 : days <= 30 ? 22 : 16,
+                          height: animatedHeight,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                color,
+                                color.withValues(alpha: 0.8),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: color.withValues(alpha: 0.3),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      DateFormat(days <= 7 ? 'EEE' : days <= 30 ? 'dd' : 'MMM').format(date),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
@@ -323,31 +672,82 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   Widget _buildStatCard2(String title, String value, IconData icon, Color color) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: color,
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 800),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.easeOutBack,
+      builder: (context, scale, child) {
+        return Transform.scale(
+          scale: scale,
+          child: Card(
+            elevation: 4,
+            shadowColor: color.withValues(alpha: 0.3),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  Icon(icon, color: color, size: 28),
+                  const SizedBox(height: 6),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 2),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
-              textAlign: TextAlign.center,
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildTotalLogsCard(LogProvider logProvider) {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 600),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.easeOut,
+      builder: (context, opacity, child) {
+        return Opacity(
+          opacity: opacity,
+          child: Card(
+            child: ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF27D52).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.receipt_long,
+                  color: Color(0xFFF27D52),
+                ),
+              ),
+              title: const Text(
+                'Total Meal Logs',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              trailing: Text(
+                logProvider.logs.length.toString(),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: const Color(0xFFF27D52),
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -385,44 +785,62 @@ class _StatsScreenState extends State<StatsScreen> {
                 ),
               )
             else
-              ...topFoods.map((entry) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF27D52).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Center(child: Text('🍱', style: TextStyle(fontSize: 18))),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        entry.key,
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF27D52).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${entry.value}×',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFF27D52),
+              ...topFoods.asMap().entries.map((entry) {
+                final index = entry.key;
+                final foodEntry = entry.value;
+                
+                return TweenAnimationBuilder<double>(
+                  duration: Duration(milliseconds: 500 + (index * 100)),
+                  tween: Tween(begin: -50.0, end: 0.0),
+                  curve: Curves.easeOutQuart,
+                  builder: (context, offset, child) {
+                    return Transform.translate(
+                      offset: Offset(offset, 0),
+                      child: Opacity(
+                        opacity: (offset + 50) / 50,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF27D52).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Center(child: Text('🍱', style: TextStyle(fontSize: 18))),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  foodEntry.key,
+                                  style: const TextStyle(fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF27D52).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${foodEntry.value}×',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFF27D52),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              )),
+                    );
+                  },
+                );
+              }),
           ],
         ),
       ),
@@ -470,5 +888,38 @@ class _StatsScreenState extends State<StatsScreen> {
       uniqueDays.add(DateFormat('yyyy-MM-dd').format(log.timestamp));
     }
     return uniqueDays.length;
+  }
+}
+class DashedLinePainter extends CustomPainter {
+  final Color color;
+  final double dashWidth;
+  final double dashSpace;
+
+  DashedLinePainter({
+    required this.color,
+    this.dashWidth = 6.0,
+    this.dashSpace = 4.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5;
+
+    double startX = 0;
+    while (startX < size.width) {
+      canvas.drawLine(
+        Offset(startX, size.height / 2),
+        Offset((startX + dashWidth).clamp(0, size.width), size.height / 2),
+        paint,
+      );
+      startX += dashWidth + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(DashedLinePainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }

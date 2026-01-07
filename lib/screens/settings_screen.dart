@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:red_panda_tracker/providers/food_provider.dart';
 import 'package:red_panda_tracker/providers/log_provider.dart';
 import 'package:red_panda_tracker/providers/settings_provider.dart';
+import 'package:red_panda_tracker/services/sheet_api.dart';
 import 'package:red_panda_tracker/widgets/calorie_commander_logo.dart';
 import 'package:red_panda_tracker/screens/food_management_screen.dart';
 
@@ -47,85 +50,109 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
 
-          // My Food Pantry
-          Card(
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF27D52).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.restaurant_menu,
-                  color: Color(0xFFF27D52),
-                ),
-              ),
-              title: const Text(
-                'My Food Pantry',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              subtitle: const Text('Manage your custom foods'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const FoodManagementScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
           // Daily Calorie Target
           Card(
+            elevation: 2,
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    'Daily Calorie Target',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF27D52).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.fire_truck,
+                      color: Color(0xFFF27D52),
+                      size: 24,
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Slider(
-                          value: settings.dailyCalorieTarget,
-                          min: 1200,
-                          max: 3500,
-                          divisions: 46,
-                          label: '${settings.dailyCalorieTarget.toInt()} kcal',
-                          onChanged: (value) {
-                            settingsProvider.updateDailyCalorieTarget(value);
-                          },
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Daily Calorie Target',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF27D52),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 130,
+                    child: TextField(
+                      controller: TextEditingController(
+                        text: settings.dailyCalorieTarget.toInt().toString(),
+                      ),
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFF27D52),
+                      ),
+                      decoration: InputDecoration(
+                        suffixText: 'kcal/day',
+                        suffixStyle: TextStyle(
+                          fontSize: 9,
+                          color: Colors.grey.shade500,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF27D52).withValues(alpha: 0.05),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: const Color(0xFFF27D52).withValues(alpha: 0.2),
+                            width: 1.5,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: const Color(0xFFF27D52).withValues(alpha: 0.2),
+                            width: 1.5,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFF27D52),
+                            width: 2,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Text(
-                        '${settings.dailyCalorieTarget.toInt()}',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'kcal/day',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF4A342E).withValues(alpha: 0.6),
-                        ),
+                      onSubmitted: (text) {
+                        final value = double.tryParse(text);
+                        if (value != null && value > 0) {
+                          settingsProvider.updateDailyCalorieTarget(value);
+                        }
+                      },
+                      onTapOutside: (_) {
+                        final controller = TextEditingController(
+                          text: settings.dailyCalorieTarget.toInt().toString(),
+                        );
+                        final value = double.tryParse(controller.text);
+                        if (value != null && value > 0) {
+                          settingsProvider.updateDailyCalorieTarget(value);
+                        }
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -136,52 +163,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Macro Targets
           Card(
+            elevation: 2,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Macro Targets',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
                         ),
+                        child: Icon(
+                          Icons.balance,
+                          color: Colors.purple.shade600,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Macro Targets',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Protein • Carbs • Fat',
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: const Color(0xFF4A342E).withValues(alpha: 0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   // Protein Target
-                  _buildMacroSlider(
+                  _buildMacroInput(
                     context,
                     'Protein',
                     settings.proteinTarget,
                     (value) => settingsProvider.updateProteinTarget(value),
-                    50,
-                    250,
                     'g/day',
                     Colors.blue,
+                    'Builds muscle & recovery',
                   ),
                   const SizedBox(height: 16),
                   // Carbs Target
-                  _buildMacroSlider(
+                  _buildMacroInput(
                     context,
                     'Carbs',
                     settings.carbsTarget,
                     (value) => settingsProvider.updateCarbsTarget(value),
-                    100,
-                    500,
                     'g/day',
                     Colors.green,
+                    'Energy for activity',
                   ),
                   const SizedBox(height: 16),
                   // Fat Target
-                  _buildMacroSlider(
+                  _buildMacroInput(
                     context,
                     'Fat',
                     settings.fatTarget,
                     (value) => settingsProvider.updateFatTarget(value),
-                    20,
-                    150,
                     'g/day',
                     Colors.amber,
+                    'Hormone & vitamin support',
                   ),
                 ],
               ),
@@ -190,108 +245,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           const SizedBox(height: 16),
           
-          // Sync Settings
+          // Install prompt helper (show on all platforms to guide users)
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Data Sync',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 16),
-                  if (logProvider.unsyncedCount > 0)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF27D52).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.cloud_upload,
-                            color: Color(0xFFF27D52),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              '${logProvider.unsyncedCount} unsynced ${logProvider.unsyncedCount == 1 ? "entry" : "entries"}',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.cloud_done,
-                            color: Colors.green,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'All entries synced',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: logProvider.isSyncing
-                          ? null
-                          : () async {
-                              final count = await logProvider.syncLogs();
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      count > 0
-                                          ? 'Synced $count ${count == 1 ? "entry" : "entries"}'
-                                          : 'No new entries to sync',
-                                    ),
-                                    backgroundColor: const Color(0xFFF27D52),
-                                  ),
-                                );
-                              }
-                            },
-                      icon: logProvider.isSyncing
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(Colors.white),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF27D52).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.ios_share, color: Color(0xFFF27D52)),
                               ),
-                            )
-                          : const Icon(Icons.sync),
-                      label: Text(logProvider.isSyncing ? 'Syncing...' : 'Sync Now'),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Install this app',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _installHint(defaultTargetPlatform),
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Note: Set your Google Apps Script URL in sync_service.dart',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF4A342E).withValues(alpha: 0.5),
-                          fontStyle: FontStyle.italic,
-                        ),
-                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -347,49 +340,117 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildMacroSlider(
+  Widget _buildMacroInput(
     BuildContext context,
     String label,
     double value,
     Function(double) onChanged,
-    double min,
-    double max,
     String unit,
     Color color,
+    String description,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final controller = TextEditingController(text: value.toInt().toString());
+    
+    return Row(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-            ),
-            Text(
-              '${value.toStringAsFixed(0)} $unit',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-            ),
-          ],
+        Expanded(
+          flex: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: const Color(0xFF4A342E).withValues(alpha: 0.6),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 8),
-        Slider(
-          value: value,
-          min: min,
-          max: max,
-          divisions: ((max - min) / 5).toInt(),
-          label: value.toStringAsFixed(0),
-          activeColor: color,
-          onChanged: onChanged,
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 100,
+          child: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            decoration: InputDecoration(
+              suffixText: unit,
+              suffixStyle: TextStyle(
+                fontSize: 10,
+                color: color.withValues(alpha: 0.7),
+                fontWeight: FontWeight.w600,
+              ),
+              filled: true,
+              fillColor: color.withValues(alpha: 0.08),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: color.withValues(alpha: 0.3),
+                  width: 2,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: color.withValues(alpha: 0.3),
+                  width: 2,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: color,
+                  width: 2.5,
+                ),
+              ),
+            ),
+            onSubmitted: (text) {
+              final parsedValue = double.tryParse(text);
+              if (parsedValue != null && parsedValue > 0) {
+                onChanged(parsedValue);
+              } else {
+                controller.text = value.toInt().toString();
+              }
+            },
+            onTapOutside: (_) {
+              final parsedValue = double.tryParse(controller.text);
+              if (parsedValue != null && parsedValue > 0) {
+                onChanged(parsedValue);
+              } else {
+                controller.text = value.toInt().toString();
+              }
+            },
+          ),
         ),
       ],
     );
+  }
+
+  String _installHint(TargetPlatform platform) {
+    if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
+      return 'On iPhone/iPad: tap Share, then “Add to Home Screen.” On macOS Safari: File → Add to Dock.';
+    }
+    return 'On Chrome/Edge: open the browser menu and choose “Install app” or “Add to Home screen.”';
   }
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class CalorieCommanderLogo extends StatelessWidget {
   final double size;
@@ -28,10 +27,10 @@ class CalorieCommanderLogo extends StatelessWidget {
             ),
           ),
           child: Center(
-            child: SvgPicture.asset(
-              'web/favicon.svg',
-              width: size * 0.85,
-              height: size * 0.85,
+            child: Image.asset(
+              'web/icons/favicon.png',
+              width: size * 0.72,
+              height: size * 0.72,
               fit: BoxFit.contain,
             ),
           ),

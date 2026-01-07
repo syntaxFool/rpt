@@ -20,6 +20,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
   double _calculatedCarbs = 0;
   double _calculatedFat = 0;
   String _selectedCategory = 'Other';
+  bool _isLoading = false;
   final _uuid = const Uuid();
 
   @override
@@ -56,43 +57,62 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
     }
   }
 
-  void _addEntry(BuildContext context) {
+  Future<void> _addEntry(BuildContext context) async {
     if (_selectedFood == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a food')),
+        const SnackBar(content: Text('Please select a food'), duration: Duration(seconds: 3)),
       );
       return;
     }
 
-    // Default to 100g if empty
-    final grams = double.tryParse(_gramsController.text) ?? 100.0;
+    setState(() => _isLoading = true);
 
-    final log = LogEntry(
-      id: _uuid.v4(),
-      foodName: _selectedFood!.name,
-      foodEmoji: _selectedFood!.emoji,
-      grams: grams,
-      calories: _calculatedCalories,
-      mealCategory: _selectedCategory,
-    );
+    try {
+      // Default to 100g if empty
+      final grams = double.tryParse(_gramsController.text) ?? 100.0;
 
-    Provider.of<LogProvider>(context, listen: false).addLog(log);
-    Navigator.pop(context);
+      final log = LogEntry(
+        id: _uuid.v4(),
+        foodName: _selectedFood!.name,
+        foodEmoji: _selectedFood!.emoji,
+        grams: grams,
+        calories: _calculatedCalories,
+        mealCategory: _selectedCategory,
+      );
+
+      await Provider.of<LogProvider>(context, listen: false).addLog(log);
+      
+      if (!mounted) return;
+      Navigator.pop(context);
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${_selectedFood!.emoji} ${_selectedFood!.name} logged!'),
-        backgroundColor: const Color(0xFFF27D52),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'UNDO',
-          textColor: Colors.white,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${_selectedFood!.emoji} ${_selectedFood!.name} logged!'),
+          backgroundColor: const Color(0xFFF27D52),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'UNDO',
+            textColor: Colors.white,
           onPressed: () {
             Provider.of<LogProvider>(context, listen: false).deleteLog(log.id);
           },
         ),
       ),
     );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving log: $e'),
+          backgroundColor: const Color(0xFFE53935),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   void _openAddFoodSheet() {
@@ -254,10 +274,15 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
                           
                           return Consumer<FoodProvider>(
                             builder: (context, foodProvider, _) {
-                              final food = foodProvider.foods.firstWhere(
-                                (f) => f.name == foodName,
-                                orElse: () => foodProvider.foods.first,
-                              );
+                              FoodAsset? food;
+                              try {
+                                food = foodProvider.foods.firstWhere(
+                                  (f) => f.name == foodName,
+                                );
+                              } catch (_) {
+                                // Food not found or list empty, skip this chip
+                                return const SizedBox.shrink();
+                              }
                               
                               return ActionChip(
                                 avatar: Text(data['emoji'] ?? '🍽️'),
@@ -336,7 +361,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
             // Grams Input
             TextField(
               controller: _gramsController,
-              keyboardType: TextInputType.number,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
               style: Theme.of(context).textTheme.displaySmall?.copyWith(
                     color: const Color(0xFFF27D52),
                     fontWeight: FontWeight.bold,
@@ -374,7 +399,7 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
                         const SizedBox(height: 8),
                         // Macro breakdown
                         Text(
-                          'P: ${_calculatedProtein.toStringAsFixed(1)}g | C: ${_calculatedCarbs.toStringAsFixed(1)}g | F: ${_calculatedFat.toStringAsFixed(1)}g',
+                          'Protein: ${_calculatedProtein.toStringAsFixed(1)}g | Carbs: ${_calculatedCarbs.toStringAsFixed(1)}g | Fat: ${_calculatedFat.toStringAsFixed(1)}g',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: const Color(0xFF4A342E).withValues(alpha: 0.6),
                           ),
@@ -388,16 +413,25 @@ class _CalculatorSheetState extends State<CalculatorSheet> {
 
             // Add Button
             ElevatedButton(
-              onPressed: () => _addEntry(context),
+              onPressed: _isLoading ? null : () => _addEntry(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF27D52),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 20),
               ),
-              child: const Text(
-                'Add to Log',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Add to Log',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
             ),
           ],
         ),

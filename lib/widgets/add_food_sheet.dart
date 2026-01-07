@@ -90,6 +90,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: const Color(0xFFE53935),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -179,7 +180,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                     label: 'Protein',
                     unit: 'g',
                     color: const Color(0xFF6366F1),
-                    shortLabel: 'P',
+                    shortLabel: 'Protein',
                   ),
                   // Carbs
                   _buildMacroInput(
@@ -187,7 +188,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                     label: 'Carbs',
                     unit: 'g',
                     color: const Color(0xFF10B981),
-                    shortLabel: 'C',
+                    shortLabel: 'Carbs',
                   ),
                   // Fat
                   _buildMacroInput(
@@ -195,7 +196,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                     label: 'Fat',
                     unit: 'g',
                     color: const Color(0xFFF59E0B),
-                    shortLabel: 'F',
+                    shortLabel: 'Fat',
                   ),
                 ],
               ),
@@ -281,7 +282,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
         const SizedBox(height: 8),
         TextField(
           controller: controller,
-          keyboardType: TextInputType.number,
+          keyboardType: TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),

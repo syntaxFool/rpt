@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' show FontFeature;
 import 'package:red_panda_tracker/models/index.dart';
 
 class LogEntryCard extends StatelessWidget {
@@ -14,15 +15,43 @@ class LogEntryCard extends StatelessWidget {
   });
 
   String _formatTime(DateTime dateTime) {
-    return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    final now = DateTime.now();
+    final isToday = dateTime.year == now.year && 
+                    dateTime.month == now.month && 
+                    dateTime.day == now.day;
+    
+    if (isToday) {
+      final hour = dateTime.hour;
+      final minute = dateTime.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      return '$displayHour:$minute $period';
+    } else {
+      final hour = dateTime.hour;
+      final minute = dateTime.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      return '${dateTime.day.toString().padLeft(2, '0')} ${dateTime.month.toString().padLeft(2, '0')} ${dateTime.year} $displayHour:$minute $period';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4A342E).withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         child: Row(
           children: [
             // Food Emoji
@@ -30,7 +59,7 @@ class LogEntryCard extends StatelessWidget {
               log.foodEmoji,
               style: const TextStyle(fontSize: 32),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 18),
 
             // Food Info
             Expanded(
@@ -39,12 +68,22 @@ class LogEntryCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        log.foodName,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: const Color(0xFF4A342E),
-                              fontWeight: FontWeight.bold,
-                            ),
+                      Expanded(
+                        child: Tooltip(
+                          message: log.foodName,
+                          waitDuration: const Duration(milliseconds: 300),
+                          child: Text(
+                            log.foodName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontSize: 15,
+                                  height: 1.2,
+                                  color: const Color(0xFF4A342E),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ),
                       ),
                       if (log.mealCategory != 'Other') ...[
                         const SizedBox(width: 8),
@@ -62,13 +101,14 @@ class LogEntryCard extends StatelessWidget {
                       ],
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Text(
                         '${log.grams.toStringAsFixed(0)}g',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: const Color(0xFF4A342E).withValues(alpha: 0.6),
+                              fontSize: 13,
                             ),
                       ),
                       const SizedBox(width: 8),
@@ -88,14 +128,22 @@ class LogEntryCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  log.calories.toStringAsFixed(0),
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: const Color(0xFFF27D52),
-                        fontWeight: FontWeight.bold,
-                      ),
+                SizedBox(
+                  width: 44,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      log.calories.toStringAsFixed(0),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontSize: 20,
+                            color: const Color(0xFFF27D52),
+                            fontWeight: FontWeight.w800,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -104,13 +152,13 @@ class LogEntryCard extends StatelessWidget {
                         onPressed: onEdit,
                         icon: const Icon(Icons.edit_outlined),
                         color: const Color(0xFFF27D52),
-                        iconSize: 20,
+                        iconSize: 18,
                       ),
                     IconButton(
                       onPressed: onDelete,
                       icon: const Icon(Icons.delete_outline),
                       color: const Color(0xFFE53935),
-                      iconSize: 20,
+                      iconSize: 18,
                     ),
                   ],
                 ),

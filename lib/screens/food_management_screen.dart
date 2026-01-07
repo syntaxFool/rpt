@@ -89,6 +89,21 @@ class FoodManagementScreen extends StatelessWidget {
                       onPressed: () => _showAddFoodSheet(context),
                       tooltip: 'Create new food',
                     ),
+                    foodProvider.isSyncing
+                        ? const Padding(
+                            padding: EdgeInsets.only(left: 8),
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.sync),
+                            color: const Color(0xFF4A342E),
+                            tooltip: 'Sync pantry',
+                            onPressed: () => _syncPantry(context),
+                          ),
                   ],
                 ),
               ),
@@ -117,6 +132,19 @@ class FoodManagementScreen extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const AddFoodSheet(),
+    );
+  }
+
+  Future<void> _syncPantry(BuildContext context) async {
+    final updated = await context.read<FoodProvider>().refreshFromSheets();
+    if (!context.mounted) return;
+
+    final message = updated > 0
+        ? 'Pulled $updated food${updated == 1 ? '' : 's'} from Sheets'
+        : 'Pantry already up to date';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }
@@ -260,12 +288,16 @@ class _FoodCard extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
-              Provider.of<FoodProvider>(context, listen: false)
+            onPressed: () async {
+              await Provider.of<FoodProvider>(context, listen: false)
                   .deleteFood(food.name);
+              if (!context.mounted) return;
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Deleted ${food.name}')),
+                SnackBar(
+                  content: Text('Deleted ${food.name}'),
+                  duration: const Duration(seconds: 4),
+                ),
               );
             },
             style: TextButton.styleFrom(

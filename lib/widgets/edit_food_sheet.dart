@@ -22,6 +22,7 @@ class _EditFoodSheetState extends State<EditFoodSheet> {
   late TextEditingController _proteinController;
   late TextEditingController _carbsController;
   late TextEditingController _fatController;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -51,20 +52,20 @@ class _EditFoodSheetState extends State<EditFoodSheet> {
     super.dispose();
   }
 
-  void _saveFood() {
+  Future<void> _saveFood() async {
     final name = _nameController.text.trim();
     final calories = double.tryParse(_caloriesController.text) ?? 0;
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a food name')),
+        const SnackBar(content: Text('Please enter a food name'), duration: Duration(seconds: 3)),
       );
       return;
     }
 
     if (calories <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Calories must be greater than 0')),
+        const SnackBar(content: Text('Calories must be greater than 0'), duration: Duration(seconds: 3)),
       );
       return;
     }
@@ -82,13 +83,25 @@ class _EditFoodSheetState extends State<EditFoodSheet> {
       fatPer100g: fat,
     );
 
-    Provider.of<FoodProvider>(context, listen: false)
-        .updateFood(widget.food.name, updatedFood);
+    setState(() => _isSaving = true);
 
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Updated $name 🐼')),
-    );
+    try {
+      await Provider.of<FoodProvider>(context, listen: false)
+          .updateFood(widget.food.name, updatedFood);
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Updated $name 🐼')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving $name: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   @override
@@ -206,7 +219,7 @@ class _EditFoodSheetState extends State<EditFoodSheet> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: _saveFood,
+              onPressed: _isSaving ? null : _saveFood,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF27D52),
                 foregroundColor: Colors.white,
@@ -215,13 +228,22 @@ class _EditFoodSheetState extends State<EditFoodSheet> {
                 ),
                 elevation: 0,
               ),
-              child: const Text(
-                'Save Changes',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Save Changes',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ],

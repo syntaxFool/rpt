@@ -1,6 +1,6 @@
 {
     "name": "Calorie Commander",
-    "short_name": "Cal Commander",
+    "short_name": "RPT",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFDF9",
@@ -11,15 +11,27 @@
     "categories": ["health", "lifestyle"],
     "icons": [
         {
-            "src": "favicon.svg",
-            "sizes": "any",
-            "type": "image/svg+xml",
+            "src": "icons/favicon.png",
+            "sizes": "192x192",
+            "type": "image/png",
             "purpose": "any"
         },
         {
-            "src": "favicon.svg",
-            "sizes": "any",
-            "type": "image/svg+xml",
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
             "purpose": "maskable"
         }
     ]

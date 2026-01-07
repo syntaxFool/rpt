@@ -64,6 +64,7 @@ class _EditLogSheetState extends State<EditLogSheet> {
         const SnackBar(
           content: Text('Please enter a valid amount'),
           backgroundColor: Color(0xFFE53935),
+          duration: Duration(seconds: 3),
         ),
       );
       return;
@@ -77,6 +78,7 @@ class _EditLogSheetState extends State<EditLogSheet> {
         const SnackBar(
           content: Text('Food not found'),
           backgroundColor: Color(0xFFE53935),
+          duration: Duration(seconds: 3),
         ),
       );
       return;
@@ -99,6 +101,7 @@ class _EditLogSheetState extends State<EditLogSheet> {
       const SnackBar(
         content: Text('Log updated! ✅'),
         backgroundColor: Color(0xFFF27D52),
+        duration: Duration(seconds: 4),
       ),
     );
   }
@@ -173,7 +176,7 @@ class _EditLogSheetState extends State<EditLogSheet> {
             // Grams Input
             TextField(
               controller: _gramsController,
-              keyboardType: TextInputType.number,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 labelText: 'Amount (grams)',
                 border: OutlineInputBorder(
@@ -202,7 +205,7 @@ class _EditLogSheetState extends State<EditLogSheet> {
                     const Icon(Icons.calendar_today, color: Color(0xFFF27D52)),
                     const SizedBox(width: 12),
                     Text(
-                      '${_selectedDateTime.year}-${_selectedDateTime.month.toString().padLeft(2, '0')}-${_selectedDateTime.day.toString().padLeft(2, '0')} '
+                      '${_selectedDateTime.day.toString().padLeft(2, '0')} ${_selectedDateTime.month.toString().padLeft(2, '0')} ${_selectedDateTime.year} '
                       '${_selectedDateTime.hour.toString().padLeft(2, '0')}:${_selectedDateTime.minute.toString().padLeft(2, '0')}',
                       style: const TextStyle(fontSize: 16),
                     ),
