@@ -26,6 +26,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   late ScrollController _scrollController;
+  
+  // Sync island state
+  bool _showSyncIsland = false;
+  String _syncMessage = 'Syncing...';
+  SyncStatus _syncStatus = SyncStatus.syncing;
 
   @override
   void initState() {
@@ -82,8 +87,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -740,6 +747,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: const Icon(Icons.add, size: 32),
         ),
       ),
+        ),
+        // Floating sync island overlay
+        SyncIsland(
+          isVisible: _showSyncIsland,
+          message: _syncMessage,
+          status: _syncStatus,
+        ),
+      ],
     );
   }
 
@@ -758,11 +773,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final profileProvider = context.read<ProfileProvider>();
     final sheetApi = SheetApi();
 
+    // Show syncing island
+    if (mounted) {
+      setState(() {
+        _showSyncIsland = true;
+        _syncMessage = 'Syncing data...';
+        _syncStatus = SyncStatus.syncing;
+      });
+    }
+
     try {
       // Fetch all data from backend
       final response = await sheetApi.fetchAll().timeout(const Duration(seconds: 20));
       if (response == null) {
         print('⚠️ Background sync: Failed to fetch data from backend');
+        if (mounted) {
+          setState(() {
+            _syncMessage = 'Sync failed';
+            _syncStatus = SyncStatus.error;
+          });
+          // Hide after 2 seconds
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              setState(() => _showSyncIsland = false);
+            }
+          });
+        }
         return;
       }
 
@@ -779,31 +815,69 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       
       print('✓ Background sync complete');
       
-      // Refresh UI after sync completes
+      // Show success
       if (mounted) {
-        setState(() {}); // Trigger rebuild with updated data
+        setState(() {
+          _syncMessage = 'Synced successfully';
+          _syncStatus = SyncStatus.success;
+        });
+        // Hide after 2 seconds
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            setState(() => _showSyncIsland = false);
+          }
+        });
+        // Trigger rebuild with updated data
+        setState(() {});
       }
     } catch (e) {
       print('❌ Background sync failed: $e');
+      if (mounted) {
+        setState(() {
+          _syncMessage = 'Sync error';
+          _syncStatus = SyncStatus.error;
+        });
+        // Hide after 2 seconds
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            setState(() => _showSyncIsland = false);
+          }
+        });
+      }
     }
   }
 
   Future<void> _runFullSync(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
-    setState(() => _isSyncing = true);
+    setState(() {
+      _isSyncing = true;
+      _showSyncIsland = true;
+      _syncMessage = 'Syncing data...';
+      _syncStatus = SyncStatus.syncing;
+    });
 
     final logProvider = context.read<LogProvider>();
     final foodProvider = context.read<FoodProvider>();
     final settingsProvider = context.read<SettingsProvider>();
+    final profileProvider = context.read<ProfileProvider>();
     final sheetApi = SheetApi();
 
     try {
       // Push any pending logs first
+      setState(() => _syncMessage = 'Uploading changes...');
       await logProvider.syncLogs();
 
       // Pull everything from Sheets and merge locally
+      setState(() => _syncMessage = 'Downloading data...');
       final response = await sheetApi.fetchAll();
       if (response == null) {
+        setState(() {
+          _syncMessage = 'Cannot reach server';
+          _syncStatus = SyncStatus.offline;
+        });
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) setState(() => _showSyncIsland = false);
+        });
         messenger.showSnackBar(
           const SnackBar(
             content: Text('Sync failed: cannot reach server'),
@@ -816,9 +890,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // Backend wraps data in {ok: true, data: {...}}
       final data = response['data'] as Map<String, dynamic>? ?? response;
 
+      setState(() => _syncMessage = 'Processing data...');
       final foods = await foodProvider.refreshFromSheets(data);
       final logs = await logProvider.refreshFromSheets(data);
       final settingsChanged = await settingsProvider.refreshFromSheets(data);
+      await profileProvider.refreshFromSheets(data);
 
       if (!mounted) return;
 
@@ -827,12 +903,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ? 'Synced: $foods foods, $logs logs${settingsChanged ? ', settings' : ''}'
           : 'Already up to date';
 
+      setState(() {
+        _syncMessage = message;
+        _syncStatus = SyncStatus.success;
+      });
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _showSyncIsland = false);
+      });
+
       messenger.showSnackBar(
         SnackBar(
           content: Text(message),
           duration: const Duration(seconds: 3),
         ),
       );
+    } catch (e) {
+      setState(() {
+        _syncMessage = 'Sync error';
+        _syncStatus = SyncStatus.error;
+      });
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _showSyncIsland = false);
+      });
     } finally {
       if (mounted) setState(() => _isSyncing = false);
     }

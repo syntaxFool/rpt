@@ -6,4 +6,6 @@ export 'add_food_sheet.dart';
 export 'edit_food_sheet.dart';
 export 'macro_progress_bar.dart';
 export 'edit_log_sheet.dart';
-export 'offline_indicator.dart';export 'panda_loading.dart';
+export 'offline_indicator.dart';
+export 'panda_loading.dart';
+export 'sync_island.dart';
