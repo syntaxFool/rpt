@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:red_panda_tracker/models/index.dart';
+import 'package:red_panda_tracker/models/profile.dart';
 import 'package:red_panda_tracker/constants/adapter_type_ids.dart';
 
 /// Service for managing Hive database initialization and box management
@@ -7,10 +8,12 @@ class HiveService {
   static const String foodBoxName = 'foods';
   static const String logBoxName = 'logs';
   static const String settingsBoxName = 'settings';
+  static const String profileBoxName = 'profile';
 
   static late Box<FoodAsset> _foodBox;
   static late Box<LogEntry> _logBox;
   static late Box<AppSettings> _settingsBox;
+  static late Box<UserProfile> _profileBox;
 
   /// Initialize Hive and register adapters
   static Future<void> init() async {
@@ -25,11 +28,18 @@ class HiveService {
       if (!Hive.isAdapterRegistered(AdapterTypeIds.appSettings)) {
         Hive.registerAdapter(AppSettingsAdapter());
       }
+      if (!Hive.isAdapterRegistered(AdapterTypeIds.userProfile)) {
+        Hive.registerAdapter(UserProfileAdapter());
+      }
+      if (!Hive.isAdapterRegistered(AdapterTypeIds.weightEntry)) {
+        Hive.registerAdapter(WeightEntryAdapter());
+      }
 
       // Open boxes
       _foodBox = await Hive.openBox<FoodAsset>(foodBoxName);
       _logBox = await Hive.openBox<LogEntry>(logBoxName);
       _settingsBox = await Hive.openBox<AppSettings>(settingsBoxName);
+      _profileBox = await Hive.openBox<UserProfile>(profileBoxName);
     } catch (e) {
       rethrow;
     }
@@ -50,17 +60,24 @@ class HiveService {
     return _settingsBox;
   }
 
+  /// Get the Profile box
+  static Box<UserProfile> getProfileBox() {
+    return _profileBox;
+  }
+
   /// Close all boxes (useful for testing or app shutdown)
   static Future<void> closeBoxes() async {
     await _foodBox.close();
     await _logBox.close();
     await _settingsBox.close();
+    await _profileBox.close();
   }
 
   /// Clear all data (useful for testing or full reset)
-  static Future<void> clearAll() async {
+  static Future<void> clearAllData() async {
     await _foodBox.clear();
     await _logBox.clear();
     await _settingsBox.clear();
+    await _profileBox.clear();
   }
 }

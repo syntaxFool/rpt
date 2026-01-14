@@ -5,7 +5,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:red_panda_tracker/services/hive_service.dart';
 import 'package:red_panda_tracker/services/sheet_api.dart';
 import 'package:red_panda_tracker/providers/index.dart';
+import 'package:red_panda_tracker/providers/profile_provider.dart';
 import 'package:red_panda_tracker/screens/index.dart';
+import 'package:red_panda_tracker/models/profile.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +33,7 @@ class CalorieCommanderApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FoodProvider()),
         ChangeNotifierProvider(create: (_) => LogProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
       ],
       child: MaterialApp(
         title: 'Calorie Commander',

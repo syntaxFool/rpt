@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:red_panda_tracker/models/index.dart';
 import 'package:red_panda_tracker/providers/food_provider.dart';
+import 'package:red_panda_tracker/services/sheet_api.dart';
 import 'package:red_panda_tracker/widgets/edit_food_sheet.dart';
 import 'package:red_panda_tracker/widgets/add_food_sheet.dart';
 
@@ -136,7 +137,10 @@ class FoodManagementScreen extends StatelessWidget {
   }
 
   Future<void> _syncPantry(BuildContext context) async {
-    final updated = await context.read<FoodProvider>().refreshFromSheets();
+    final response = await SheetApi().fetchAll();
+    if (response == null) return;
+    final data = response['data'] as Map<String, dynamic>? ?? response;
+    final updated = await context.read<FoodProvider>().refreshFromSheets(data);
     if (!context.mounted) return;
 
     final message = updated > 0

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:red_panda_tracker/providers/index.dart';
+import 'package:red_panda_tracker/providers/profile_provider.dart';
 import 'package:red_panda_tracker/widgets/index.dart';
 import 'package:red_panda_tracker/screens/index.dart';
 import 'package:red_panda_tracker/models/index.dart';
@@ -24,13 +25,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _includeNotesInSearch = true;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
     _dateRange = _todayRange();
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 0), // Disabled for faster startup
       vsync: this,
     );
     _fadeAnimation = CurvedAnimation(
@@ -39,7 +41,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
     _fadeController.forward();
     
-    // Auto-sync on app start
+    // Initialize scroll controller with snap behavior
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+    
+    // Auto-sync on app start (non-blocking - background sync)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _performStartupSync();
     });
@@ -48,7 +54,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _fadeController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    // Snap to cards when scroll ends
+    if (!_scrollController.position.isScrollingNotifier.value) {
+      _snapToCard();
+    }
+  }
+
+  void _snapToCard() {
+    if (!_scrollController.hasClients) return;
+    
+    final itemHeight = 460.0; // Approximate card height + padding
+    final offset = _scrollController.offset;
+    final nearestItem = (offset / itemHeight).round();
+    final targetOffset = nearestItem * itemHeight;
+    
+    _scrollController.animateTo(
+      targetOffset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutQuad,
+    );
   }
 
   @override
@@ -128,6 +157,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(height: 8),
+              ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF27D52).withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.person, color: Color(0xFFF27D52)),
+                ),
+                title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.w600)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                  );
+                },
+              ),
               ListTile(
                 leading: Container(
                   width: 40,
@@ -276,6 +325,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: FadeTransition(
                   opacity: _fadeAnimation,
                   child: CustomScrollView(
+                    controller: _scrollController,
+                    physics: const BouncingScrollPhysics(),
                     slivers: [
                       SliverPadding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
@@ -283,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           delegate: SliverChildListDelegate([
                             // Balance Circle
                             TweenAnimationBuilder<double>(
-                        duration: const Duration(milliseconds: 1000),
+                        duration: const Duration(milliseconds: 0), // Disabled for faster startup
                         tween: Tween(begin: 0.0, end: 1.0),
                         curve: Curves.elasticOut,
                         builder: (context, scale, child) {
@@ -692,40 +743,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _performStartupSync() async {
-    if (!mounted) return;
-    
+  void _performStartupSync() {
+    // Show cached UI immediately, sync in background
+    if (mounted) {
+      setState(() => _isInitialSyncing = false);
+    }
+    _syncInBackground();
+  }
+
+  Future<void> _syncInBackground() async {
     final logProvider = context.read<LogProvider>();
     final foodProvider = context.read<FoodProvider>();
     final settingsProvider = context.read<SettingsProvider>();
+    final profileProvider = context.read<ProfileProvider>();
     final sheetApi = SheetApi();
 
     try {
       // Fetch all data from backend
-      final response = await sheetApi.fetchAll();
+      final response = await sheetApi.fetchAll().timeout(const Duration(seconds: 20));
       if (response == null) {
-        print('⚠️ Startup sync: Failed to fetch data from backend');
+        print('⚠️ Background sync: Failed to fetch data from backend');
         return;
       }
 
       // Backend wraps data in {ok: true, data: {...}}
       final data = response['data'] as Map<String, dynamic>? ?? response;
 
-      // Sync all providers
-      await Future.wait([
-        foodProvider.refreshFromSheets(),
+      // Run all sync operations in parallel
+      await Future.wait<dynamic>([
+        foodProvider.refreshFromSheets(data),
         logProvider.refreshFromSheets(data),
+        settingsProvider.refreshFromSheets(data),
+        profileProvider.refreshFromSheets(data),
       ]);
       
-      await settingsProvider.refreshFromSheets(data);
+      print('✓ Background sync complete');
       
-      print('✓ Startup sync complete');
-    } catch (e) {
-      print('❌ Startup sync failed: $e');
-    } finally {
+      // Refresh UI after sync completes
       if (mounted) {
-        setState(() => _isInitialSyncing = false);
+        setState(() {}); // Trigger rebuild with updated data
       }
+    } catch (e) {
+      print('❌ Background sync failed: $e');
     }
   }
 
@@ -757,16 +816,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // Backend wraps data in {ok: true, data: {...}}
       final data = response['data'] as Map<String, dynamic>? ?? response;
 
-      final foods = await foodProvider.refreshFromSheets();
+      final foods = await foodProvider.refreshFromSheets(data);
       final logs = await logProvider.refreshFromSheets(data);
-      final settingsChanged = await settingsProvider.refreshFromSheets(
-        data,
-        onConflict: (local, remote) => _showSettingsConflictDialog(
-          context,
-          local,
-          remote,
-        ),
-      );
+      final settingsChanged = await settingsProvider.refreshFromSheets(data);
 
       if (!mounted) return;
 
@@ -784,97 +836,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     } finally {
       if (mounted) setState(() => _isSyncing = false);
     }
-  }
-
-  Future<bool> _showSettingsConflictDialog(
-    BuildContext context,
-    AppSettings local,
-    AppSettings remote,
-  ) async {
-    final result = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Settings conflict'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Choose which settings to keep for targets and sync.'),
-              const SizedBox(height: 12),
-              _buildSettingsComparisonRow(
-                'Calories',
-                local.dailyCalorieTarget,
-                remote.dailyCalorieTarget,
-                'kcal',
-              ),
-              _buildSettingsComparisonRow(
-                'Protein',
-                local.proteinTarget,
-                remote.proteinTarget,
-                'g',
-              ),
-              _buildSettingsComparisonRow(
-                'Carbs',
-                local.carbsTarget,
-                remote.carbsTarget,
-                'g',
-              ),
-              _buildSettingsComparisonRow(
-                'Fat',
-                local.fatTarget,
-                remote.fatTarget,
-                'g',
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Keep mine'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Use cloud'),
-            ),
-          ],
-        );
-      },
-    );
-
-    return result ?? true;
-  }
-
-  Widget _buildSettingsComparisonRow(
-    String label,
-    double localValue,
-    double remoteValue,
-    String unit,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('Mine: ${localValue.toStringAsFixed(0)} $unit'),
-              Text('Cloud: ${remoteValue.toStringAsFixed(0)} $unit'),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 
   DateTimeRange _todayRange() {

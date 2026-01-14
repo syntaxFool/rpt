@@ -66,6 +66,14 @@ class SheetApi {
       'proteinTarget': settings.proteinTarget,
       'carbsTarget': settings.carbsTarget,
       'fatTarget': settings.fatTarget,
+      'lastModified': settings.lastModified.toIso8601String(),
+    });
+  }
+
+  Future<bool> updateProfile(UserProfile profile) async {
+    return _post({
+      'action': 'updateProfile',
+      ...profile.toJson(),
     });
   }
 
@@ -76,7 +84,7 @@ class SheetApi {
             _uri,
             body: jsonEncode({'action': 'list'}),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 20)); // Increased for better reliability
       if (res.statusCode == 200) {
         return jsonDecode(res.body) as Map<String, dynamic>;
       } else {

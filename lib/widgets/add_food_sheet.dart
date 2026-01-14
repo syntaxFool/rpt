@@ -3,6 +3,15 @@ import 'package:provider/provider.dart';
 import 'package:red_panda_tracker/models/food_asset.dart';
 import 'package:red_panda_tracker/providers/food_provider.dart';
 
+/// Convert text to proper case (first letter of each word capitalized)
+String _toProperCase(String text) {
+  if (text.isEmpty) return text;
+  return text.trim().split(' ').map((word) {
+    if (word.isEmpty) return word;
+    return word[0].toUpperCase() + (word.length > 1 ? word.substring(1).toLowerCase() : '');
+  }).join(' ');
+}
+
 class AddFoodSheet extends StatefulWidget {
   const AddFoodSheet({super.key});
 
@@ -31,7 +40,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
 
   Future<void> _saveFoodAsset() async {
     // Validate inputs
-    final name = _nameController.text.trim();
+    final name = _toProperCase(_nameController.text.trim());
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

@@ -25,6 +25,8 @@ function doPost(e) {
         return deleteFood(ss, body);
       case 'updateSettings':
         return updateSettings(ss, body);
+      case 'updateProfile':
+        return updateProfile(ss, body);
       case 'list':
         return listData(ss, body);
       default:
@@ -47,12 +49,14 @@ const SHEET_NAMES = {
   LOGS: 'Logs',
   FOODS: 'Foods',
   SETTINGS: 'Settings',
+  PROFILE: 'Profile',
 };
 
 const HEADERS = {
   Logs: ['id', 'timestamp', 'foodName', 'foodEmoji', 'grams', 'calories', 'mealCategory'],
   Foods: ['name', 'emoji', 'caloriesPer100g', 'proteinPer100g', 'carbsPer100g', 'fatPer100g'],
-  Settings: ['dailyCalorieTarget', 'proteinTarget', 'carbsTarget', 'fatTarget'],
+  Settings: ['dailyCalorieTarget', 'proteinTarget', 'carbsTarget', 'fatTarget', 'lastModified'],
+  Profile: ['name', 'age', 'gender', 'heightCm', 'currentWeightKg', 'goalWeightKg', 'lastWeightCheckIn', 'weightHistory', 'createdAt', 'lastModified'],
 };
 
 function getSpreadsheet() {
@@ -143,6 +147,7 @@ function initSheets(ss) {
   ensureSheet(ss, SHEET_NAMES.LOGS, HEADERS.Logs);
   ensureSheet(ss, SHEET_NAMES.FOODS, HEADERS.Foods);
   ensureSheet(ss, SHEET_NAMES.SETTINGS, HEADERS.Settings);
+  ensureSheet(ss, SHEET_NAMES.PROFILE, HEADERS.Profile);
   return jsonOk({ initialized: true });
 }
 
@@ -261,6 +266,46 @@ function updateSettings(ss, b) {
         asNumber(b.proteinTarget, 150),
         asNumber(b.carbsTarget, 250),
         asNumber(b.fatTarget, 70),
+        String(b.lastModified || new Date().toISOString()),
+      ],
+    ]);
+    return jsonOk({ updated: true });
+  } catch (err) {
+    return jsonErr(err);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateProfile(ss, b) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const sh = ensureSheet(ss, SHEET_NAMES.PROFILE, HEADERS.Profile);
+    const rowIdx = 2; // single-row profile
+    
+    // Parse weightHistory JSON array
+    let weightHistoryStr = '[]';
+    if (b.weightHistory) {
+      try {
+        weightHistoryStr = JSON.stringify(b.weightHistory);
+      } catch (e) {
+        weightHistoryStr = String(b.weightHistory);
+      }
+    }
+    
+    sh.getRange(rowIdx, 1, 1, HEADERS.Profile.length).setValues([
+      [
+        sanitizeText(b.name),
+        asNumber(b.age, 0),
+        sanitizeText(b.gender),
+        asNumber(b.heightCm, 0),
+        asNumber(b.currentWeightKg, 0),
+        asNumber(b.goalWeightKg, 0),
+        String(b.lastWeightCheckIn || ''),
+        weightHistoryStr,
+        String(b.createdAt || new Date().toISOString()),
+        String(b.lastModified || new Date().toISOString()),
       ],
     ]);
     return jsonOk({ updated: true });
@@ -275,6 +320,7 @@ function listData(ss, b) {
   const logsSh = ensureSheet(ss, SHEET_NAMES.LOGS, HEADERS.Logs);
   const foodsSh = ensureSheet(ss, SHEET_NAMES.FOODS, HEADERS.Foods);
   const settingsSh = ensureSheet(ss, SHEET_NAMES.SETTINGS, HEADERS.Settings);
+  const profileSh = ensureSheet(ss, SHEET_NAMES.PROFILE, HEADERS.Profile);
 
   // Optional filters
   const startDate = parseDateISO(b.startDate);
@@ -285,6 +331,7 @@ function listData(ss, b) {
   const logsVals = logsSh.getDataRange().getValues();
   const foodsVals = foodsSh.getDataRange().getValues();
   const settingsVals = settingsSh.getDataRange().getValues();
+  const profileVals = profileSh.getDataRange().getValues();
 
   // Logs mapping
   let logs = [];
@@ -330,19 +377,69 @@ function listData(ss, b) {
   }
 
   // Settings mapping (single row)
-  const settings = {};
+  // Only include settings if there is any non-empty value in the row.
+  // This avoids sending hardcoded defaults when the sheet is empty.
+  let settings; // undefined unless populated
   if (settingsVals.length >= 2) {
     const row = settingsVals[1];
-    settings.dailyCalorieTarget = asNumber(row[0], 2000);
-    settings.proteinTarget = asNumber(row[1], 150);
-    settings.carbsTarget = asNumber(row[2], 250);
-    settings.fatTarget = asNumber(row[3], 70);
+    const hasAny = row.slice(0, 5).some(v => v != null && String(v) !== '');
+    if (hasAny) {
+      settings = {
+        dailyCalorieTarget: asNumber(row[0], 2000),
+        proteinTarget: asNumber(row[1], 150),
+        carbsTarget: asNumber(row[2], 250),
+        fatTarget: asNumber(row[3], 70),
+        // If lastModified is missing, set to current time so remote wins on first migration
+        lastModified: String(row[4] || new Date().toISOString()),
+      };
+    }
+  }
+
+  // Profile mapping (single row)
+  let profile; // undefined unless populated
+  if (profileVals.length >= 2) {
+    const row = profileVals[1];
+    const hasAny = row.slice(0, 10).some(v => v != null && String(v) !== '');
+    if (hasAny) {
+      // Parse weightHistory JSON
+      let weightHistory = [];
+      if (row[7]) {
+        try {
+          weightHistory = JSON.parse(String(row[7]));
+        } catch (e) {
+          weightHistory = [];
+        }
+      }
+      
+      // Helper to convert date values to ISO strings
+      const toISOString = (val) => {
+        if (!val) return '';
+        if (val instanceof Date) return val.toISOString();
+        return String(val);
+      };
+      
+      profile = {
+        name: String(row[0] || ''),
+        age: asNumber(row[1], 0),
+        gender: String(row[2] || ''),
+        heightCm: asNumber(row[3], 0),
+        currentWeightKg: asNumber(row[4], 0),
+        goalWeightKg: asNumber(row[5], 0),
+        lastWeightCheckIn: toISOString(row[6]),
+        weightHistory: weightHistory,
+        createdAt: toISOString(row[8]) || new Date().toISOString(),
+        lastModified: toISOString(row[9]) || new Date().toISOString(),
+      };
+    }
   }
 
   return jsonOk({
     logs,
     foods,
-    settings,
+    // settings will be omitted from JSON if undefined
+    ...(typeof settings !== 'undefined' ? { settings } : {}),
+    // profile will be omitted from JSON if undefined
+    ...(typeof profile !== 'undefined' ? { profile } : {}),
     meta: {
       totalLogs,
       page: pageSize > 0 ? page : null,

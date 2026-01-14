@@ -16,12 +16,20 @@ class FoodProvider extends ChangeNotifier {
     _foodBox = HiveService.getFoodBox();
     _loadFoods();
     // Pull any remote pantry items shortly after startup
-    refreshFromSheets().catchError((e) {
+    _refreshFromSheetsInitial().catchError((e) {
       print('FoodProvider: Initial sync failed: $e');
       _initialSyncFailed = true;
       notifyListeners();
       // Continue with local data
     });
+  }
+
+  /// Initial sync that fetches data from API
+  Future<int> _refreshFromSheetsInitial() async {
+    final response = await _sheetApi.fetchAll();
+    if (response == null) return 0;
+    final data = response['data'] as Map<String, dynamic>? ?? response;
+    return refreshFromSheets(data);
   }
 
   /// Get all foods
@@ -97,16 +105,13 @@ class FoodProvider extends ChangeNotifier {
   }
 
   /// Pull foods from the Apps Script backend and merge into Hive
-  Future<int> refreshFromSheets() async {
+  Future<int> refreshFromSheets(Map<String, dynamic> data) async {
     if (_isSyncing) return 0;
 
     _isSyncing = true;
     notifyListeners();
 
     try {
-      final data = await _sheetApi.fetchAll();
-      if (data == null) return 0;
-
       final remoteFoods = (data['foods'] as List?) ?? [];
       if (remoteFoods.isEmpty) {
         return 0;

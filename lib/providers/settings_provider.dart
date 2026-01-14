@@ -20,12 +20,6 @@ class SettingsProvider extends ChangeNotifier {
   SettingsProvider() {
     _settingsBox = HiveService.getSettingsBox();
     _loadSettings();
-    // Pull remote settings shortly after startup
-    refreshFromSheets({}).catchError((e) {
-      print('SettingsProvider: Initial sync failed: $e');
-      _initialSyncFailed = true;
-      notifyListeners();
-    });
   }
 
   /// Get current settings
@@ -43,19 +37,22 @@ class SettingsProvider extends ChangeNotifier {
       _settings = saved;
     } else {
       // Save default settings
-      _saveSettings();
+      // Persist defaults locally, but DO NOT push to remote here.
+      _saveSettings(pushRemote: false);
     }
     notifyListeners();
   }
 
   /// Save settings to Hive
-  Future<void> _saveSettings() async {
+  Future<void> _saveSettings({bool pushRemote = false}) async {
     try {
       await _settingsBox.put('app_settings', _settings);
-      // Push settings to Sheets; ignore failure to preserve offline behavior
-      try {
-        await _sheetApi.updateSettings(_settings);
-      } catch (_) {}
+      if (pushRemote) {
+        // Push settings to Sheets; ignore failure to preserve offline behavior
+        try {
+          await _sheetApi.updateSettings(_settings);
+        } catch (_) {}
+      }
       notifyListeners();
     } catch (e) {
       rethrow;
@@ -65,32 +62,29 @@ class SettingsProvider extends ChangeNotifier {
   /// Update daily calorie target
   Future<void> updateDailyCalorieTarget(double value) async {
     _settings = _settings.copyWith(dailyCalorieTarget: value);
-    await _saveSettings();
+    await _saveSettings(pushRemote: true);
   }
 
   /// Update protein target
   Future<void> updateProteinTarget(double value) async {
     _settings = _settings.copyWith(proteinTarget: value);
-    await _saveSettings();
+    await _saveSettings(pushRemote: true);
   }
 
   /// Update carbs target
   Future<void> updateCarbsTarget(double value) async {
     _settings = _settings.copyWith(carbsTarget: value);
-    await _saveSettings();
+    await _saveSettings(pushRemote: true);
   }
 
   /// Update fat target
   Future<void> updateFatTarget(double value) async {
     _settings = _settings.copyWith(fatTarget: value);
-    await _saveSettings();
+    await _saveSettings(pushRemote: true);
   }
 
-  /// Pull settings from backend payload
-  Future<bool> refreshFromSheets(
-    Map<String, dynamic> data, {
-    SettingsConflictResolver? onConflict,
-  }) async {
+  /// Pull settings from backend payload (timestamp-based merge, newest wins)
+  Future<bool> refreshFromSheets(Map<String, dynamic> data) async {
     if (_isSyncing) return false;
 
     _isSyncing = true;
@@ -98,44 +92,43 @@ class SettingsProvider extends ChangeNotifier {
 
     try {
       // If 'settings' key doesn't exist in payload, it means no settings were saved to Sheets yet
-      // In this case, push current local settings to Sheets instead of overwriting with defaults
+      // Do NOT push local defaults automatically; wait until user updates a setting.
       if (!data.containsKey('settings')) {
-        // No settings in Sheets - push current local settings
-        await _sheetApi.updateSettings(_settings);
         return false;
       }
 
       final settingsMap = data['settings'];
       if (settingsMap == null || settingsMap is! Map) return false;
 
+      final remoteLastModified = _asDate(settingsMap['lastModified']);
+      
       final fetched = AppSettings(
         dailyCalorieTarget: _asDouble(settingsMap['dailyCalorieTarget'], fallback: _settings.dailyCalorieTarget),
         proteinTarget: _asDouble(settingsMap['proteinTarget'], fallback: _settings.proteinTarget),
         carbsTarget: _asDouble(settingsMap['carbsTarget'], fallback: _settings.carbsTarget),
         fatTarget: _asDouble(settingsMap['fatTarget'], fallback: _settings.fatTarget),
+        lastModified: remoteLastModified,
       );
 
       final differs = !_settingsEquals(_settings, fetched);
       if (!differs) return false;
 
-      var useRemote = true;
-      if (onConflict != null) {
-        try {
-          useRemote = await onConflict(_settings, fetched);
-        } catch (_) {}
-      }
-
-      if (useRemote) {
+      // Timestamp-based merge: newest wins
+      if (remoteLastModified != null && remoteLastModified.isAfter(_settings.lastModified)) {
+        // Remote is newer - use it
         _settings = fetched;
         await _settingsBox.put('app_settings', _settings);
         notifyListeners();
+        print('✓ Settings synced from cloud (remote newer)');
         return true;
+      } else {
+        // Local is newer or same - push to cloud
+        try {
+          await _sheetApi.updateSettings(_settings);
+          print('✓ Settings pushed to cloud (local newer)');
+        } catch (_) {}
+        return false;
       }
-
-      try {
-        await _sheetApi.updateSettings(_settings);
-      } catch (_) {}
-      return false;
     } catch (_) {
       return false;
     } finally {
@@ -148,6 +141,12 @@ class SettingsProvider extends ChangeNotifier {
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? fallback;
     return fallback;
+  }
+
+  DateTime? _asDate(dynamic value) {
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 
   bool _settingsEquals(AppSettings a, AppSettings b) {

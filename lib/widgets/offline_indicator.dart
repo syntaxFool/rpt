@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:red_panda_tracker/providers/food_provider.dart';
+import 'package:red_panda_tracker/services/sheet_api.dart';
 
 /// Banner widget that displays when initial sync fails, indicating offline mode
 class OfflineIndicator extends StatelessWidget {
@@ -44,9 +45,13 @@ class OfflineIndicator extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed: () {
+                onPressed: () async {
                   // Retry sync
-                  foodProvider.refreshFromSheets();
+                  final response = await SheetApi().fetchAll();
+                  if (response != null) {
+                    final data = response['data'] as Map<String, dynamic>? ?? response;
+                    await foodProvider.refreshFromSheets(data);
+                  }
                 },
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

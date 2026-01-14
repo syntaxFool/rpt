@@ -10,10 +10,15 @@ class AdapterTypeIds {
   /// AppSettings model adapter
   static const int appSettings = 12;
   
+  /// UserProfile model adapter
+  static const int userProfile = 13;
+  
+  /// WeightEntry model adapter
+  static const int weightEntry = 14;
+  
   /// DailyNote model adapter
   static const int dailyNote = 15;
   
-  // Reserve 13-14 for future use
   // When adding new models:
   // 1. Add constant here first
   // 2. Update model's @HiveType annotation

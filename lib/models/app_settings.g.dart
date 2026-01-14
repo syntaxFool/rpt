@@ -21,13 +21,14 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       proteinTarget: fields[1] as double,
       carbsTarget: fields[2] as double,
       fatTarget: fields[3] as double,
+      lastModified: fields[4] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, AppSettings obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.dailyCalorieTarget)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       ..writeByte(2)
       ..write(obj.carbsTarget)
       ..writeByte(3)
-      ..write(obj.fatTarget);
+      ..write(obj.fatTarget)
+      ..writeByte(4)
+      ..write(obj.lastModified);
   }
 
   @override
